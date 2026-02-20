@@ -12,6 +12,7 @@ const EMPTY = {
   title: "",
   brand: "",
   gender: "unisex",
+  valute: "USD",
   price: 0,
   discount: 0,
   item_left: 0,
@@ -19,6 +20,20 @@ const EMPTY = {
   release_date: "",
   images: [],
 };
+
+// ✅ NEW: discount bilan hisoblab yuborish uchun helper
+function calcDiscountedPrice(price, discount) {
+  const p = Number(price || 0);
+  const dRaw = Number(discount || 0);
+
+  // discount 0..100 clamp
+  const d = Math.min(100, Math.max(0, dRaw));
+
+  const discounted = p * (1 - d / 100);
+
+  // pul uchun 2 ta kasr (xohlasang olib tashlaysan)
+  return Number(discounted.toFixed(2));
+}
 
 export default function Admin() {
   const {
@@ -28,6 +43,9 @@ export default function Admin() {
     error,
     refetch,
   } = useGetProductsQuery();
+
+  console.log(products);
+  
 
   const [addProduct, { isLoading: adding }] = useAddProductMutation();
   const [updateProduct, { isLoading: updating }] = useUpdateProductMutation();
@@ -45,6 +63,9 @@ export default function Admin() {
   const [mode, setMode] = useState("add"); // add | edit
   const [draft, setDraft] = useState(EMPTY);
   const [uploading, setUploading] = useState(false);
+
+  // ✅ NEW: item_left unknown flag
+  const [unknownLeft, setUnknownLeft] = useState(false);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -73,13 +94,19 @@ export default function Admin() {
     setMode("add");
     setDraft(EMPTY);
     setSelected(null);
+    setUnknownLeft(false); // ✅ NEW
     setOpenForm(true);
   };
 
   const openEditModal = (p) => {
     setMode("edit");
     setSelected(p);
-    setDraft(productToDraft(p));
+    const d = productToDraft(p);
+    setDraft(d);
+
+    // ✅ NEW: editda item_left null bo'lsa checkbox ON bo'ladi
+    setUnknownLeft(p.item_left == null);
+
     setOpenForm(true);
   };
 
@@ -87,6 +114,7 @@ export default function Admin() {
     setOpenForm(false);
     setSelected(null);
     setDraft(EMPTY);
+    setUnknownLeft(false); // ✅ NEW
   };
 
   const onRowClick = (e, p) => {
@@ -120,7 +148,9 @@ export default function Admin() {
       const urls = [];
       for (const file of slice) {
         const ext = file.name.split(".").pop() || "jpg";
-        const path = `products/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+        const path = `products/${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2)}.${ext}`;
 
         const { error: upErr, data } = await supabase.storage
           .from("product-images")
@@ -162,13 +192,24 @@ export default function Admin() {
       return;
     }
 
+    // ✅ jo'natishdan oldin discount bilan hisoblash
+    const finalPrice = calcDiscountedPrice(draft.price, draft.discount);
+
     const body = {
       title: draft.title.trim(),
       brand: draft.brand.trim(),
       gender: draft.gender,
-      price: Number(draft.price || 0),
+      valute: draft.valute ?? "USD",
+
+      // ✅ price endi discount bilan yuboriladi
+      price: finalPrice,
+
+      // discountni saqlaymiz
       discount: Number(draft.discount || 0),
-      item_left: Number(draft.item_left || 0),
+
+      // ✅ NEW: unknown bo'lsa null, bo'lmasa number
+      item_left: unknownLeft ? null : Number(draft.item_left || 0),
+
       info: draft.info?.trim() || null,
       release_date: draft.release_date?.trim() || null,
       images: Array.isArray(draft.images) ? draft.images : [],
@@ -220,18 +261,10 @@ export default function Admin() {
           </p>
         </div>
         <div className="header-actions">
-          <button
-            className="btn"
-            onClick={refetch}
-            aria-label="Refresh products"
-          >
+          <button className="btn" onClick={refetch} aria-label="Refresh products">
             {isLoading ? "Refreshing..." : "Refresh"}
           </button>
-          <button
-            className="btn primary"
-            onClick={openAddModal}
-            aria-label="Add product"
-          >
+          <button className="btn primary" onClick={openAddModal} aria-label="Add product">
             + Add
           </button>
         </div>
@@ -282,9 +315,7 @@ export default function Admin() {
                     height={44}
                     loading="lazy"
                     decoding="async"
-                    onError={(e) =>
-                      (e.currentTarget.src = "https://via.placeholder.com/44")
-                    }
+                    onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/44")}
                   />
                   <div>
                     <strong className="product-title" title={p.title}>
@@ -297,9 +328,14 @@ export default function Admin() {
                 <td>
                   <span className="badge">{p.gender}</span>
                 </td>
-                <td>${Number(p.price).toFixed(2)}</td>
+                <td>
+                  {Number(p.price).toFixed(2)} {p.valute ?? "USD"}
+                </td>
                 <td>{p.discount}%</td>
-                <td>{p.item_left ?? 0}</td>
+
+                {/* ✅ NEW: null bo'lsa ko'rsatish */}
+                <td>{p.item_left == null ? "—" : p.item_left}</td>
+
                 <td>{p.release_date || "-"}</td>
                 <td className="actions">
                   <button
@@ -351,15 +387,10 @@ export default function Admin() {
                   {selected.title}
                 </h3>
                 <p className="muted">
-                  {selected.brand} •{" "}
-                  <span className="badge">{selected.gender}</span>
+                  {selected.brand} • <span className="badge">{selected.gender}</span>
                 </p>
               </div>
-              <button
-                className="icon-btn"
-                onClick={closeViewModal}
-                aria-label="Close view"
-              >
+              <button className="icon-btn" onClick={closeViewModal} aria-label="Close view">
                 ✕
               </button>
             </div>
@@ -372,7 +403,9 @@ export default function Admin() {
                   <div className="kvs">
                     <div className="kv">
                       <span>Price</span>
-                      <b>${Number(selected.price).toFixed(2)}</b>
+                      <b>
+                        {Number(selected.price).toFixed(2)} {selected.valute ?? "USD"}
+                      </b>
                     </div>
                     <div className="kv">
                       <span>Discount</span>
@@ -380,7 +413,7 @@ export default function Admin() {
                     </div>
                     <div className="kv">
                       <span>Item left</span>
-                      <b>{selected.item_left ?? 0}</b>
+                      <b>{selected.item_left == null ? "—" : selected.item_left}</b>
                     </div>
                     <div className="kv">
                       <span>Release date</span>
@@ -432,19 +465,12 @@ export default function Admin() {
           >
             <div className="modal-top">
               <div>
-                <h3
-                  id={`form-modal-title-${selected?.id ?? mode}`}
-                  className="modal-h"
-                >
+                <h3 id={`form-modal-title-${selected?.id ?? mode}`} className="modal-h">
                   {mode === "add" ? "Add product" : "Edit product"}
                 </h3>
                 <p className="muted">Upload 1–3 images from PC</p>
               </div>
-              <button
-                className="icon-btn"
-                onClick={closeFormModal}
-                aria-label="Close form"
-              >
+              <button className="icon-btn" onClick={closeFormModal} aria-label="Close form">
                 ✕
               </button>
             </div>
@@ -456,9 +482,7 @@ export default function Admin() {
                   <input
                     id="product-title"
                     value={draft.title}
-                    onChange={(e) =>
-                      setDraft({ ...draft, title: e.target.value })
-                    }
+                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                   />
                 </div>
 
@@ -467,9 +491,7 @@ export default function Admin() {
                   <input
                     id="product-brand"
                     value={draft.brand}
-                    onChange={(e) =>
-                      setDraft({ ...draft, brand: e.target.value })
-                    }
+                    onChange={(e) => setDraft({ ...draft, brand: e.target.value })}
                   />
                 </div>
 
@@ -478,13 +500,23 @@ export default function Admin() {
                   <select
                     id="product-gender"
                     value={draft.gender}
-                    onChange={(e) =>
-                      setDraft({ ...draft, gender: e.target.value })
-                    }
+                    onChange={(e) => setDraft({ ...draft, gender: e.target.value })}
                   >
                     <option value="men">men</option>
                     <option value="women">women</option>
                     <option value="unisex">unisex</option>
+                  </select>
+                </div>
+
+                <div className="form-row">
+                  <label htmlFor="product-valute">Valute</label>
+                  <select
+                    id="product-valute"
+                    value={draft.valute ?? "USD"}
+                    onChange={(e) => setDraft({ ...draft, valute: e.target.value })}
+                  >
+                    <option value="USD">USD($)</option>
+                    <option value="UZS">UZS(sum)</option>
                   </select>
                 </div>
 
@@ -497,13 +529,9 @@ export default function Admin() {
                       step="0.01"
                       defaultValue={draft.price}
                       onFocus={(e) => {
-                        if (Number(e.target.value) === 0) {
-                          e.target.select();
-                        }
+                        if (Number(e.target.value) === 0) e.target.select();
                       }}
-                      onChange={(e) =>
-                        setDraft({ ...draft, price: Number(e.target.value) })
-                      }
+                      onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })}
                     />
                   </div>
 
@@ -514,9 +542,7 @@ export default function Admin() {
                       type="number"
                       defaultValue={draft.discount}
                       onFocus={(e) => {
-                        if (Number(e.target.value) === 0) {
-                          e.target.select();
-                        }
+                        if (Number(e.target.value) === 0) e.target.select();
                       }}
                       onChange={(e) =>
                         setDraft({ ...draft, discount: Number(e.target.value) })
@@ -526,22 +552,41 @@ export default function Admin() {
 
                   <div className="form-row">
                     <label htmlFor="product-left">Item left</label>
-                    <input
-                      id="product-left"
-                      type="number"
-                      defaultValue={draft.item_left}
-                      onFocus={(e) => {
-                        if (Number(e.target.value) === 0) {
-                          e.target.select();
+
+                    {/* ✅ NEW: checkbox + input */}
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <input
+                        id="product-left"
+                        type="number"
+                        defaultValue={draft.item_left}
+                        disabled={unknownLeft}
+                        onFocus={(e) => {
+                          if (Number(e.target.value) === 0) e.target.select();
+                        }}
+                        onChange={(e) =>
+                          setDraft({ ...draft, item_left: Number(e.target.value) })
                         }
-                      }}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          item_left: Number(e.target.value),
-                        })
-                      }
-                    />
+                      />
+
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          userSelect: "none",
+                          fontSize: 13,
+                          opacity: 0.9,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={unknownLeft}
+                          onChange={(e) => setUnknownLeft(e.target.checked)}
+                        />
+                        Unknown
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -550,9 +595,7 @@ export default function Admin() {
                   <input
                     id="product-release"
                     value={draft.release_date}
-                    onChange={(e) =>
-                      setDraft({ ...draft, release_date: e.target.value })
-                    }
+                    onChange={(e) => setDraft({ ...draft, release_date: e.target.value })}
                     placeholder="YYYY-MM-DD"
                   />
                 </div>
@@ -563,9 +606,7 @@ export default function Admin() {
                     id="product-info"
                     rows={4}
                     value={draft.info}
-                    onChange={(e) =>
-                      setDraft({ ...draft, info: e.target.value })
-                    }
+                    onChange={(e) => setDraft({ ...draft, info: e.target.value })}
                   />
                 </div>
 
@@ -580,7 +621,9 @@ export default function Admin() {
                     aria-label="Upload product images"
                   />
                   <div className="upload-hint">
-                    {uploading ? "Uploading..." : "Pick images from your PC"}
+                    {uploading
+                      ? "Uploading..."
+                      : "Pick images from your PC (Recommended to upload 220x190px)"}
                   </div>
 
                   <div className="thumbs">
@@ -609,19 +652,10 @@ export default function Admin() {
               </div>
 
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={closeFormModal}
-                  aria-label="Cancel"
-                >
+                <button type="button" className="btn ghost" onClick={closeFormModal} aria-label="Cancel">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn primary"
-                  disabled={uploading || adding || updating}
-                >
+                <button type="submit" className="btn primary" disabled={uploading || adding || updating}>
                   {mode === "add"
                     ? adding
                       ? "Adding..."
@@ -649,6 +683,7 @@ function productToDraft(p) {
     title: p.title ?? "",
     brand: p.brand ?? "",
     gender: p.gender ?? "unisex",
+    valute: p.valute ?? "USD",
     price: Number(p.price ?? 0),
     discount: Number(p.discount ?? 0),
     item_left: Number(p.item_left ?? 0),
@@ -663,8 +698,7 @@ function Gallery({ images, title }) {
   const [idx, setIdx] = useState(0);
   const current = safe[idx] || "https://via.placeholder.com/520x360";
 
-  const prev = () =>
-    safe.length && setIdx((p) => (p - 1 + safe.length) % safe.length);
+  const prev = () => safe.length && setIdx((p) => (p - 1 + safe.length) % safe.length);
   const next = () => safe.length && setIdx((p) => (p + 1) % safe.length);
 
   return (
@@ -677,25 +711,15 @@ function Gallery({ images, title }) {
           height={190}
           loading="lazy"
           decoding="async"
-          onError={(e) =>
-            (e.currentTarget.src = "https://via.placeholder.com/520x360")
-          }
+          onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/520x360")}
         />
 
         {safe.length > 1 && (
           <>
-            <button
-              className="nav-btn left"
-              onClick={prev}
-              aria-label="Previous image"
-            >
+            <button className="nav-btn left" onClick={prev} aria-label="Previous image">
               ‹
             </button>
-            <button
-              className="nav-btn right"
-              onClick={next}
-              aria-label="Next image"
-            >
+            <button className="nav-btn right" onClick={next} aria-label="Next image">
               ›
             </button>
           </>
@@ -715,14 +739,7 @@ function Gallery({ images, title }) {
               title={`Image ${i + 1}`}
               aria-label={`Show image ${i + 1}`}
             >
-              <img
-                src={src}
-                alt={`${title}-${i}`}
-                width={72}
-                height={60}
-                loading="lazy"
-                decoding="async"
-              />
+              <img src={src} alt={`${title}-${i}`} width={72} height={60} loading="lazy" decoding="async" />
             </button>
           ))
         )}
@@ -732,7 +749,5 @@ function Gallery({ images, title }) {
 }
 
 function getErr(err) {
-  return (
-    err?.data?.message || err?.error || err?.message || "Something went wrong"
-  );
+  return err?.data?.message || err?.error || err?.message || "Something went wrong";
 }
