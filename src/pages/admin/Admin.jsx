@@ -215,7 +215,7 @@ export default function Admin() {
         </div>
         <div className="header-actions">
           <button className="btn" onClick={refetch}>
-            Refresh
+            {isLoading ? "Refreshing..." : "Refresh"}
           </button>
           <button className="btn primary" onClick={openAddModal}>
             + Add
