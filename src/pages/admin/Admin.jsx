@@ -17,12 +17,17 @@ const EMPTY = {
   item_left: 0,
   info: "",
   release_date: "",
-  images: [], // array of URLs
+  images: [],
 };
 
 export default function Admin() {
-  const { data: products = [], isLoading, isError, error, refetch } =
-    useGetProductsQuery();
+  const {
+    data: products = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useGetProductsQuery();
 
   const [addProduct, { isLoading: adding }] = useAddProductMutation();
   const [updateProduct, { isLoading: updating }] = useUpdateProductMutation();
@@ -102,7 +107,7 @@ export default function Admin() {
     }
   };
 
-  // ✅ Upload local files -> Storage -> get public URLs -> put into draft.images
+  // Upload local files -> Storage -> get public URLs -> put into draft.images
   const onPickImages = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -115,9 +120,7 @@ export default function Admin() {
       const urls = [];
       for (const file of slice) {
         const ext = file.name.split(".").pop() || "jpg";
-        const path = `products/${Date.now()}-${Math.random()
-          .toString(16)
-          .slice(2)}.${ext}`;
+        const path = `products/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
 
         const { error: upErr, data } = await supabase.storage
           .from("product-images")
@@ -128,7 +131,6 @@ export default function Admin() {
         const { data: pub } = supabase.storage
           .from("product-images")
           .getPublicUrl(data.path);
-
         urls.push(pub.publicUrl);
       }
 
@@ -194,7 +196,11 @@ export default function Admin() {
             <h2>Admin • Products</h2>
             <p className="muted">Error</p>
           </div>
-          <button className="btn" onClick={refetch}>
+          <button
+            className="btn"
+            onClick={refetch}
+            aria-label="Retry fetching products"
+          >
             Retry
           </button>
         </div>
@@ -214,10 +220,18 @@ export default function Admin() {
           </p>
         </div>
         <div className="header-actions">
-          <button className="btn" onClick={refetch}>
+          <button
+            className="btn"
+            onClick={refetch}
+            aria-label="Refresh products"
+          >
             {isLoading ? "Refreshing..." : "Refresh"}
           </button>
-          <button className="btn primary" onClick={openAddModal}>
+          <button
+            className="btn primary"
+            onClick={openAddModal}
+            aria-label="Add product"
+          >
             + Add
           </button>
         </div>
@@ -229,8 +243,13 @@ export default function Admin() {
           placeholder="Search title / brand..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          aria-label="Search products by title or brand"
         />
-        <select value={gender} onChange={(e) => setGender(e.target.value)}>
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+          aria-label="Filter by gender"
+        >
           <option value="all">All</option>
           <option value="men">men</option>
           <option value="women">women</option>
@@ -252,20 +271,25 @@ export default function Admin() {
               <th className="th-actions">Actions</th>
             </tr>
           </thead>
-
           <tbody>
             {filtered.map((p) => (
               <tr key={p.id} className="row" onClick={(e) => onRowClick(e, p)}>
                 <td className="product-cell">
                   <img
                     src={firstImage(p.images)}
-                    alt={p.title}
+                    alt={p.title || "Product image"}
+                    width={44}
+                    height={44}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) =>
                       (e.currentTarget.src = "https://via.placeholder.com/44")
                     }
                   />
                   <div>
-                    <strong>{p.title}</strong>
+                    <strong className="product-title" title={p.title}>
+                      {p.title}
+                    </strong>
                     <small>{p.id}</small>
                   </div>
                 </td>
@@ -284,6 +308,7 @@ export default function Admin() {
                       e.stopPropagation();
                       openEditModal(p);
                     }}
+                    aria-label={`Edit ${p.title}`}
                   >
                     Edit
                   </button>
@@ -291,6 +316,7 @@ export default function Admin() {
                     className="btn danger"
                     onClick={(e) => onDelete(e, p.id)}
                     disabled={deleting}
+                    aria-label={`Delete ${p.title}`}
                   >
                     Delete
                   </button>
@@ -300,7 +326,7 @@ export default function Admin() {
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan="8" className="muted">
+                <td colSpan="9" className="muted">
                   No products found.
                 </td>
               </tr>
@@ -312,16 +338,28 @@ export default function Admin() {
       {/* VIEW MODAL */}
       {openView && selected && (
         <div className="modal-overlay" onMouseDown={closeViewModal}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`view-modal-title-${selected.id}`}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="modal-top">
               <div>
-                <h3 className="modal-h">{selected.title}</h3>
+                <h3 id={`view-modal-title-${selected.id}`} className="modal-h">
+                  {selected.title}
+                </h3>
                 <p className="muted">
                   {selected.brand} •{" "}
                   <span className="badge">{selected.gender}</span>
                 </p>
               </div>
-              <button className="icon-btn" onClick={closeViewModal}>
+              <button
+                className="icon-btn"
+                onClick={closeViewModal}
+                aria-label="Close view"
+              >
                 ✕
               </button>
             </div>
@@ -365,6 +403,7 @@ export default function Admin() {
                   closeViewModal();
                   openEditModal(selected);
                 }}
+                aria-label="Edit product"
               >
                 Edit
               </button>
@@ -372,6 +411,7 @@ export default function Admin() {
                 className="btn danger"
                 onClick={(e) => onDelete(e, selected.id)}
                 disabled={deleting}
+                aria-label="Delete product"
               >
                 Delete
               </button>
@@ -383,15 +423,28 @@ export default function Admin() {
       {/* ADD/EDIT MODAL */}
       {openForm && (
         <div className="modal-overlay" onMouseDown={closeFormModal}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`form-modal-title-${selected?.id ?? mode}`}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="modal-top">
               <div>
-                <h3 className="modal-h">
+                <h3
+                  id={`form-modal-title-${selected?.id ?? mode}`}
+                  className="modal-h"
+                >
                   {mode === "add" ? "Add product" : "Edit product"}
                 </h3>
                 <p className="muted">Upload 1–3 images from PC</p>
               </div>
-              <button className="icon-btn" onClick={closeFormModal}>
+              <button
+                className="icon-btn"
+                onClick={closeFormModal}
+                aria-label="Close form"
+              >
                 ✕
               </button>
             </div>
@@ -399,8 +452,9 @@ export default function Admin() {
             <form className="modal-body" onSubmit={onSubmit}>
               <div className="form-grid">
                 <div className="form-row">
-                  <label>Title</label>
+                  <label htmlFor="product-title">Title</label>
                   <input
+                    id="product-title"
                     value={draft.title}
                     onChange={(e) =>
                       setDraft({ ...draft, title: e.target.value })
@@ -409,8 +463,9 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label>Brand</label>
+                  <label htmlFor="product-brand">Brand</label>
                   <input
+                    id="product-brand"
                     value={draft.brand}
                     onChange={(e) =>
                       setDraft({ ...draft, brand: e.target.value })
@@ -419,8 +474,9 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label>Gender</label>
+                  <label htmlFor="product-gender">Gender</label>
                   <select
+                    id="product-gender"
                     value={draft.gender}
                     onChange={(e) =>
                       setDraft({ ...draft, gender: e.target.value })
@@ -434,11 +490,17 @@ export default function Admin() {
 
                 <div className="form-2col">
                   <div className="form-row">
-                    <label>Price</label>
+                    <label htmlFor="product-price">Price</label>
                     <input
+                      id="product-price"
                       type="number"
                       step="0.01"
                       defaultValue={draft.price}
+                      onFocus={(e) => {
+                        if (Number(e.target.value) === 0) {
+                          e.target.select();
+                        }
+                      }}
                       onChange={(e) =>
                         setDraft({ ...draft, price: Number(e.target.value) })
                       }
@@ -446,24 +508,33 @@ export default function Admin() {
                   </div>
 
                   <div className="form-row">
-                    <label>Discount (%)</label>
+                    <label htmlFor="product-discount">Discount (%)</label>
                     <input
+                      id="product-discount"
                       type="number"
                       defaultValue={draft.discount}
+                      onFocus={(e) => {
+                        if (Number(e.target.value) === 0) {
+                          e.target.select();
+                        }
+                      }}
                       onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          discount: Number(e.target.value),
-                        })
+                        setDraft({ ...draft, discount: Number(e.target.value) })
                       }
                     />
                   </div>
 
                   <div className="form-row">
-                    <label>Item left</label>
+                    <label htmlFor="product-left">Item left</label>
                     <input
+                      id="product-left"
                       type="number"
                       defaultValue={draft.item_left}
+                      onFocus={(e) => {
+                        if (Number(e.target.value) === 0) {
+                          e.target.select();
+                        }
+                      }}
                       onChange={(e) =>
                         setDraft({
                           ...draft,
@@ -475,8 +546,9 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label>Release date</label>
+                  <label htmlFor="product-release">Release date</label>
                   <input
+                    id="product-release"
                     value={draft.release_date}
                     onChange={(e) =>
                       setDraft({ ...draft, release_date: e.target.value })
@@ -486,8 +558,9 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label>Info</label>
+                  <label htmlFor="product-info">Info</label>
                   <textarea
+                    id="product-info"
                     rows={4}
                     value={draft.info}
                     onChange={(e) =>
@@ -497,12 +570,14 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label>Images (1–3)</label>
+                  <label htmlFor="product-images">Images (1–3)</label>
                   <input
+                    id="product-images"
                     type="file"
                     multiple
                     accept="image/*"
                     onChange={onPickImages}
+                    aria-label="Upload product images"
                   />
                   <div className="upload-hint">
                     {uploading ? "Uploading..." : "Pick images from your PC"}
@@ -511,11 +586,19 @@ export default function Admin() {
                   <div className="thumbs">
                     {(draft.images || []).map((src, idx) => (
                       <div key={src + idx} className="thumbWrap">
-                        <img src={src} alt={`img-${idx}`} />
+                        <img
+                          src={src}
+                          alt={`Product preview ${idx + 1}`}
+                          width={190}
+                          height={190}
+                          loading="lazy"
+                          decoding="async"
+                        />
                         <button
                           type="button"
                           className="miniX"
                           onClick={() => removeImage(idx)}
+                          aria-label={`Remove image ${idx + 1}`}
                         >
                           ✕
                         </button>
@@ -530,6 +613,7 @@ export default function Admin() {
                   type="button"
                   className="btn ghost"
                   onClick={closeFormModal}
+                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
@@ -543,8 +627,8 @@ export default function Admin() {
                       ? "Adding..."
                       : "Add"
                     : updating
-                    ? "Saving..."
-                    : "Save"}
+                      ? "Saving..."
+                      : "Save"}
                 </button>
               </div>
             </form>
@@ -589,6 +673,10 @@ function Gallery({ images, title }) {
         <img
           src={current}
           alt={title}
+          width={190}
+          height={190}
+          loading="lazy"
+          decoding="async"
           onError={(e) =>
             (e.currentTarget.src = "https://via.placeholder.com/520x360")
           }
@@ -596,10 +684,18 @@ function Gallery({ images, title }) {
 
         {safe.length > 1 && (
           <>
-            <button className="nav-btn left" onClick={prev} aria-label="Prev">
+            <button
+              className="nav-btn left"
+              onClick={prev}
+              aria-label="Previous image"
+            >
               ‹
             </button>
-            <button className="nav-btn right" onClick={next} aria-label="Next">
+            <button
+              className="nav-btn right"
+              onClick={next}
+              aria-label="Next image"
+            >
               ›
             </button>
           </>
@@ -617,8 +713,16 @@ function Gallery({ images, title }) {
               className={`thumb ${i === idx ? "active" : ""}`}
               onClick={() => setIdx(i)}
               title={`Image ${i + 1}`}
+              aria-label={`Show image ${i + 1}`}
             >
-              <img src={src} alt={`${title}-${i}`} />
+              <img
+                src={src}
+                alt={`${title}-${i}`}
+                width={72}
+                height={60}
+                loading="lazy"
+                decoding="async"
+              />
             </button>
           ))
         )}
@@ -628,5 +732,7 @@ function Gallery({ images, title }) {
 }
 
 function getErr(err) {
-  return err?.data?.message || err?.error || err?.message || "Something went wrong";
+  return (
+    err?.data?.message || err?.error || err?.message || "Something went wrong"
+  );
 }

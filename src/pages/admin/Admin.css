@@ -331,6 +331,15 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
+/* Truncate long product titles with ellipsis */
+.product-title {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -396,6 +405,12 @@ tbody tr:last-child td {
   margin: 0;
   font-size: 18px;
   letter-spacing: -0.02em;
+}
+/* Truncate very long modal titles */
+.modal-h {
+  max-width: calc(100% - 120px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-body {
@@ -477,11 +492,14 @@ tbody tr:last-child td {
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.10);
   box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .gallery-main img {
-  width: 100%;
-  height: 320px;
+  width: 190px;
+  height: 190px;
   object-fit: cover;
   display: block;
   transform: scale(1.001);
@@ -701,8 +719,8 @@ tbody tr:last-child td {
 /* thumbs list */
 .thumbWrap {
   position: relative;
-  width: 92px;
-  height: 76px;
+  width: 190px;
+  height: 190px;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.10);
@@ -754,7 +772,8 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
   .gallery-main img {
-    height: 240px;
+    width: 140px;
+    height: 140px;
   }
   .product-cell small {
     max-width: 220px;
@@ -816,8 +835,8 @@ tbody tr:last-child td {
   }
 
   .thumbWrap {
-    width: 84px;
-    height: 70px;
+    width: 120px;
+    height: 120px;
   }
 
   .btn.ghost {
@@ -839,6 +858,7 @@ tbody tr:last-child td {
   }
 
   .gallery-main img {
-    height: 210px;
+    width: 120px;
+    height: 120px;
   }
 }
