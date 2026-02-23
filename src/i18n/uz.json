@@ -1,0 +1,103 @@
+{
+  "admin": {
+    "title": "Admin • Mahsulotlar",
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik",
+    "retry": "Qayta urin",
+    "refresh": "Yangilash",
+    "add": "+ Qo‘shish",
+    "total": "Jami: {{total}} • Ko‘rsatilmoqda: {{showing}}",
+    "searchPlaceholder": "Title / brand bo‘yicha qidirish...",
+    "filterGender": "Gender bo‘yicha filter",
+    "gender": {
+      "all": "Hammasi",
+      "men": "erkaklar",
+      "women": "ayollar",
+      "unisex": "unisex",
+      "universal": "Universal"
+    },
+    "table": {
+      "product": "Mahsulot",
+      "brand": "Brend",
+      "gender": "Gender",
+      "price": "Narx",
+      "discount": "Chegirma",
+      "left": "Qoldiq",
+      "ml": "ML",
+      "release": "Sana",
+      "actions": "Amallar",
+      "noProducts": "Mahsulot topilmadi.",
+      "old": "Old: {{price}}"
+    },
+    "actions": {
+      "edit": "Tahrirlash",
+      "delete": "O‘chirish"
+    }
+  },
+
+  "viewModal": {
+    "close": "Yopish",
+    "priceDiscounted": "Narx (chegirmali)",
+    "oldMoney": "Eski narx",
+    "discount": "Chegirma",
+    "itemLeft": "Qoldiq",
+    "mlSizes": "ML o‘lchamlar",
+    "releaseDate": "Sana",
+    "info": "Ma’lumot",
+    "noInfo": "-",
+    "edit": "Tahrirlash",
+    "delete": "O‘chirish"
+  },
+
+  "formModal": {
+    "addTitle": "Mahsulot qo‘shish",
+    "editTitle": "Mahsulotni tahrirlash",
+    "subtitle": "Kompyuterdan 1–3 ta rasm yuklang",
+    "close": "Yopish",
+    "title": "Nomi",
+    "brand": "Brend",
+    "gender": "Gender",
+    "valute": "Valyuta",
+    "mlSizes": "ML o‘lchamlar",
+    "mlPlaceholder": "masalan 50",
+    "addMl": "+ ML qo‘shish",
+    "noMlYet": "Hali ML o‘lcham qo‘shilmagan.",
+    "priceOriginal": "Narx (asl)",
+    "finalSavedPrice": "Saqlanadigan yakuniy narx:",
+    "discountPercent": "Chegirma (%)",
+    "itemLeft": "Qoldiq",
+    "unknown": "Noma’lum",
+    "releaseDate": "Sana",
+    "releasePlaceholder": "YYYY-MM-DD",
+    "info": "Ma’lumot",
+    "images": "Rasmlar (1–3)",
+    "uploadHint": "PC’dan rasm tanlang (Tavsiya: 220x190px)",
+    "uploading": "Yuklanmoqda...",
+    "removeImage": "{{n}}-rasmni o‘chirish",
+    "cancel": "Bekor",
+    "addBtn": "Qo‘shish",
+    "saveBtn": "Saqlash",
+    "adding": "Qo‘shilmoqda...",
+    "saving": "Saqlanmoqda..."
+  },
+
+  "deleteModal": {
+    "title": "Mahsulot o‘chirilsinmi?",
+    "subtitle": "Bu amalni ortga qaytarib bo‘lmaydi.",
+    "close": "Yopish",
+    "headsUp": "Eslatma:",
+    "warnText": "mahsulot bazadan butunlay o‘chadi.",
+    "cancel": "Bekor",
+    "confirm": "Ha, o‘chir",
+    "deleting": "O‘chirilmoqda..."
+  },
+
+  "misc": {
+    "dash": "—",
+    "unknownProduct": "Mahsulot",
+    "untitled": "Nomsiz",
+    "noImages": "Rasm yo‘q",
+    "uploadError": "Yuklashda xatolik",
+    "validationTitleBrand": "Title va brand bo‘sh bo‘lmasin."
+  }
+}

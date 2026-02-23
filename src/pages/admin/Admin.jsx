@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+// Admin.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import "./Admin.css";
 import {
   useAddProductMutation,
@@ -7,35 +8,52 @@ import {
   useUpdateProductMutation,
 } from "../../app/services/authApi";
 import { supabase } from "../../app/supabaseClient";
+import { useTranslation } from "react-i18next";
 
 const EMPTY = {
   title: "",
   brand: "",
   gender: "unisex",
   valute: "USD",
-  price: 0,
+  price: 0, // UI input price (original)
   discount: 0,
   item_left: 0,
   info: "",
   release_date: "",
   images: [],
+  ml_sizes: [], // integer[]
 };
 
-// ✅ NEW: discount bilan hisoblab yuborish uchun helper
 function calcDiscountedPrice(price, discount) {
   const p = Number(price || 0);
   const dRaw = Number(discount || 0);
-
-  // discount 0..100 clamp
   const d = Math.min(100, Math.max(0, dRaw));
-
   const discounted = p * (1 - d / 100);
-
-  // pul uchun 2 ta kasr (xohlasang olib tashlaysan)
   return Number(discounted.toFixed(2));
 }
 
+// sanitize + unique + sort
+function normalizeMl(list) {
+  const arr = Array.isArray(list) ? list : [];
+  const clean = arr
+    .map((x) => Number(x))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return Array.from(new Set(clean)).sort((a, b) => a - b);
+}
+
 export default function Admin() {
+  const { t, i18n } = useTranslation();
+
+  // lang in localStorage: "lang"
+  const [lang, setLang] = useState(() => {
+    return localStorage.getItem("lang") || i18n.language || "en";
+  });
+
+  useEffect(() => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem("lang", lang);
+  }, [lang, i18n]);
+
   const {
     data: products = [],
     isLoading,
@@ -43,9 +61,6 @@ export default function Admin() {
     error,
     refetch,
   } = useGetProductsQuery();
-
-  console.log(products);
-  
 
   const [addProduct, { isLoading: adding }] = useAddProductMutation();
   const [updateProduct, { isLoading: updating }] = useUpdateProductMutation();
@@ -64,8 +79,16 @@ export default function Admin() {
   const [draft, setDraft] = useState(EMPTY);
   const [uploading, setUploading] = useState(false);
 
-  // ✅ NEW: item_left unknown flag
+  // item_left unknown flag
   const [unknownLeft, setUnknownLeft] = useState(false);
+
+  // delete confirm
+  const [openDelete, setOpenDelete] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  // ML chip input
+  const [mlInput, setMlInput] = useState("");
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -94,19 +117,17 @@ export default function Admin() {
     setMode("add");
     setDraft(EMPTY);
     setSelected(null);
-    setUnknownLeft(false); // ✅ NEW
+    setUnknownLeft(false);
+    setMlInput("");
     setOpenForm(true);
   };
 
   const openEditModal = (p) => {
     setMode("edit");
     setSelected(p);
-    const d = productToDraft(p);
-    setDraft(d);
-
-    // ✅ NEW: editda item_left null bo'lsa checkbox ON bo'ladi
+    setDraft(productToDraft(p));
     setUnknownLeft(p.item_left == null);
-
+    setMlInput("");
     setOpenForm(true);
   };
 
@@ -114,7 +135,8 @@ export default function Admin() {
     setOpenForm(false);
     setSelected(null);
     setDraft(EMPTY);
-    setUnknownLeft(false); // ✅ NEW
+    setUnknownLeft(false);
+    setMlInput("");
   };
 
   const onRowClick = (e, p) => {
@@ -122,25 +144,66 @@ export default function Admin() {
     openViewModal(p);
   };
 
-  const onDelete = async (e, id) => {
-    e.stopPropagation();
-    const ok = confirm("Delete product?");
-    if (!ok) return;
+  const askDelete = (e, product) => {
+    e?.stopPropagation?.();
+    setDeleteTarget(product);
+    setOpenDelete(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteBusy) return;
+    setOpenDelete(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) return;
+    setDeleteBusy(true);
     try {
-      await deleteProduct(id).unwrap();
-      if (selected?.id === id) closeViewModal();
-      closeFormModal();
+      await deleteProduct(deleteTarget.id).unwrap();
+      if (selected?.id === deleteTarget.id) closeViewModal();
+      if (openForm && selected?.id === deleteTarget.id) closeFormModal();
+      closeDeleteModal();
     } catch (err) {
       alert(getErr(err));
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
-  // Upload local files -> Storage -> get public URLs -> put into draft.images
+  // ML handlers (chips)
+  const addMlChip = (value) => {
+    const n = Number(String(value).trim());
+    if (!Number.isFinite(n) || n <= 0) return;
+
+    setDraft((prev) => ({
+      ...prev,
+      ml_sizes: normalizeMl([...(prev.ml_sizes || []), n]),
+    }));
+    setMlInput("");
+  };
+
+  const onMlKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addMlChip(mlInput);
+    }
+  };
+
+  const removeMlChip = (ml) => {
+    setDraft((prev) => ({
+      ...prev,
+      ml_sizes: normalizeMl(
+        (prev.ml_sizes || []).filter((x) => Number(x) !== Number(ml))
+      ),
+    }));
+  };
+
+  // Upload local files -> Storage -> public URLs -> draft.images
   const onPickImages = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // limit 3
     const slice = files.slice(0, 3);
 
     setUploading(true);
@@ -161,6 +224,7 @@ export default function Admin() {
         const { data: pub } = supabase.storage
           .from("product-images")
           .getPublicUrl(data.path);
+
         urls.push(pub.publicUrl);
       }
 
@@ -169,10 +233,10 @@ export default function Admin() {
         images: [...(prev.images || []), ...urls].slice(0, 3),
       }));
     } catch (err) {
-      alert(err?.message || "Upload error");
+      alert(err?.message || t("misc.uploadError"));
     } finally {
       setUploading(false);
-      e.target.value = ""; // same file pick again works
+      e.target.value = "";
     }
   };
 
@@ -186,14 +250,16 @@ export default function Admin() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // minimal validation
     if (!draft.title.trim() || !draft.brand.trim()) {
-      alert("title va brand bo‘sh bo‘lmasin");
+      alert(t("misc.validationTitleBrand"));
       return;
     }
 
-    // ✅ jo'natishdan oldin discount bilan hisoblash
-    const finalPrice = calcDiscountedPrice(draft.price, draft.discount);
+    // original input price
+    const originalPrice = Number(draft.price || 0);
+
+    // discounted final price -> price column
+    const finalPrice = calcDiscountedPrice(originalPrice, draft.discount);
 
     const body = {
       title: draft.title.trim(),
@@ -201,18 +267,17 @@ export default function Admin() {
       gender: draft.gender,
       valute: draft.valute ?? "USD",
 
-      // ✅ price endi discount bilan yuboriladi
+      // NEW RULES:
+      old_money: originalPrice,
       price: finalPrice,
-
-      // discountni saqlaymiz
       discount: Number(draft.discount || 0),
 
-      // ✅ NEW: unknown bo'lsa null, bo'lmasa number
       item_left: unknownLeft ? null : Number(draft.item_left || 0),
 
       info: draft.info?.trim() || null,
       release_date: draft.release_date?.trim() || null,
       images: Array.isArray(draft.images) ? draft.images : [],
+      ml_sizes: normalizeMl(draft.ml_sizes),
     };
 
     try {
@@ -227,26 +292,25 @@ export default function Admin() {
     }
   };
 
-  if (isLoading) return <div className="admin-wrap">Loading...</div>;
+  if (isLoading) return <div className="admin-wrap">{t("admin.loading")}</div>;
 
   if (isError)
     return (
       <div className="admin-wrap">
         <div className="admin-header">
           <div>
-            <h2>Admin • Products</h2>
-            <p className="muted">Error</p>
+            <h2>{t("admin.title")}</h2>
+            <p className="muted">{t("admin.error")}</p>
           </div>
-          <button
-            className="btn"
-            onClick={refetch}
-            aria-label="Retry fetching products"
-          >
-            Retry
-          </button>
+          <div className="header-actions">
+            <button className="btn" onClick={refetch}>
+              {t("admin.retry")}
+            </button>
+          </div>
         </div>
+
         <p className="error">
-          {error?.status} {error?.data?.message || "Error"}
+          {error?.status} {error?.data?.message || t("admin.error")}
         </p>
       </div>
     );
@@ -255,17 +319,36 @@ export default function Admin() {
     <div className="admin-wrap">
       <div className="admin-header">
         <div>
-          <h2>Admin • Products</h2>
+          <h2>{t("admin.title")}</h2>
           <p className="muted">
-            Total: {products.length} • Showing: {filtered.length}
+            {t("admin.total", { total: products.length, showing: filtered.length })}
           </p>
         </div>
+
         <div className="header-actions">
-          <button className="btn" onClick={refetch} aria-label="Refresh products">
-            {isLoading ? "Refreshing..." : "Refresh"}
+          {/* ✅ LANG SELECT */}
+          <div className="lang-wrap">
+            <label className="lang-label" htmlFor="lang-select">
+              Lang
+            </label>
+            <select
+              id="lang-select"
+              className="lang-select"
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+              aria-label="Change language"
+            >
+              <option value="en">EN</option>
+              <option value="uz">UZ</option>
+              <option value="ru">RU</option>
+            </select>
+          </div>
+
+          <button className="btn" onClick={refetch}>
+            {t("admin.refresh")}
           </button>
-          <button className="btn primary" onClick={openAddModal} aria-label="Add product">
-            + Add
+          <button className="btn primary" onClick={openAddModal}>
+            {t("admin.add")}
           </button>
         </div>
       </div>
@@ -273,20 +356,17 @@ export default function Admin() {
       <div className="admin-toolbar">
         <input
           type="text"
-          placeholder="Search title / brand..."
+          placeholder={t("admin.searchPlaceholder")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          aria-label="Search products by title or brand"
         />
-        <select
-          value={gender}
-          onChange={(e) => setGender(e.target.value)}
-          aria-label="Filter by gender"
-        >
-          <option value="all">All</option>
-          <option value="men">men</option>
-          <option value="women">women</option>
-          <option value="unisex">unisex</option>
+
+        <select value={gender} onChange={(e) => setGender(e.target.value)}>
+          <option value="all">{t("admin.gender.all")}</option>
+          <option value="men">{t("admin.gender.men")}</option>
+          <option value="women">{t("admin.gender.women")}</option>
+          <option value="unisex">{t("admin.gender.unisex")}</option>
+          <option value="universal">{t("admin.gender.universal")}</option>
         </select>
       </div>
 
@@ -294,28 +374,32 @@ export default function Admin() {
         <table>
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Brand</th>
-              <th>Gender</th>
-              <th>Price</th>
-              <th>Discount</th>
-              <th>Left</th>
-              <th>Release</th>
-              <th className="th-actions">Actions</th>
+              <th>{t("admin.table.product")}</th>
+              <th>{t("admin.table.brand")}</th>
+              <th>{t("admin.table.gender")}</th>
+              <th>{t("admin.table.price")}</th>
+              <th>{t("admin.table.discount")}</th>
+              <th>{t("admin.table.left")}</th>
+              <th>{t("admin.table.ml")}</th>
+              <th>{t("admin.table.release")}</th>
+              <th className="th-actions">{t("admin.table.actions")}</th>
             </tr>
           </thead>
+
           <tbody>
             {filtered.map((p) => (
               <tr key={p.id} className="row" onClick={(e) => onRowClick(e, p)}>
                 <td className="product-cell">
                   <img
                     src={firstImage(p.images)}
-                    alt={p.title || "Product image"}
+                    alt={p.title || t("misc.unknownProduct")}
                     width={44}
                     height={44}
                     loading="lazy"
                     decoding="async"
-                    onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/44")}
+                    onError={(e) =>
+                      (e.currentTarget.src = "https://via.placeholder.com/44")
+                    }
                   />
                   <div>
                     <strong className="product-title" title={p.title}>
@@ -324,19 +408,47 @@ export default function Admin() {
                     <small>{p.id}</small>
                   </div>
                 </td>
+
                 <td>{p.brand}</td>
+
                 <td>
                   <span className="badge">{p.gender}</span>
                 </td>
-                <td>
-                  {Number(p.price).toFixed(2)} {p.valute ?? "USD"}
-                </td>
-                <td>{p.discount}%</td>
 
-                {/* ✅ NEW: null bo'lsa ko'rsatish */}
-                <td>{p.item_left == null ? "—" : p.item_left}</td>
+                <td>
+                  {Number(p.price ?? 0).toFixed(2)} {p.valute ?? "USD"}
+                  {Number(p.old_money ?? 0) > 0 &&
+                    Number(p.old_money) !== Number(p.price) && (
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {t("admin.table.old", {
+                          price: Number(p.old_money).toFixed(2),
+                        })}
+                      </div>
+                    )}
+                </td>
+
+                <td>{Number(p.discount ?? 0)}%</td>
+                <td>{p.item_left == null ? t("misc.dash") : p.item_left}</td>
+
+                <td>
+                  <span className="ml-inline">
+                    {Array.isArray(p.ml_sizes) && p.ml_sizes.length > 0 ? (
+                      p.ml_sizes.slice(0, 3).map((m) => (
+                        <span key={m} className="ml-pill">
+                          {m}ml
+                        </span>
+                      ))
+                    ) : (
+                      <span className="muted">{t("misc.dash")}</span>
+                    )}
+                    {Array.isArray(p.ml_sizes) && p.ml_sizes.length > 3 && (
+                      <span className="ml-more">+{p.ml_sizes.length - 3}</span>
+                    )}
+                  </span>
+                </td>
 
                 <td>{p.release_date || "-"}</td>
+
                 <td className="actions">
                   <button
                     className="btn ghost"
@@ -344,17 +456,16 @@ export default function Admin() {
                       e.stopPropagation();
                       openEditModal(p);
                     }}
-                    aria-label={`Edit ${p.title}`}
                   >
-                    Edit
+                    {t("admin.actions.edit")}
                   </button>
+
                   <button
                     className="btn danger"
-                    onClick={(e) => onDelete(e, p.id)}
+                    onClick={(e) => askDelete(e, p)}
                     disabled={deleting}
-                    aria-label={`Delete ${p.title}`}
                   >
-                    Delete
+                    {t("admin.actions.delete")}
                   </button>
                 </td>
               </tr>
@@ -362,8 +473,8 @@ export default function Admin() {
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan="9" className="muted">
-                  No products found.
+                <td colSpan="10" className="muted">
+                  {t("admin.table.noProducts")}
                 </td>
               </tr>
             )}
@@ -373,57 +484,71 @@ export default function Admin() {
 
       {/* VIEW MODAL */}
       {openView && selected && (
-        <div className="modal-overlay" onMouseDown={closeViewModal}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`view-modal-title-${selected.id}`}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+        <div className="modal-overlay" onClick={closeViewModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
               <div>
-                <h3 id={`view-modal-title-${selected.id}`} className="modal-h">
-                  {selected.title}
-                </h3>
+                <h3 className="modal-h">{selected.title}</h3>
                 <p className="muted">
                   {selected.brand} • <span className="badge">{selected.gender}</span>
                 </p>
               </div>
-              <button className="icon-btn" onClick={closeViewModal} aria-label="Close view">
+              <button className="icon-btn" onClick={closeViewModal}>
                 ✕
               </button>
             </div>
 
             <div className="modal-body">
               <div className="modal-grid">
-                <Gallery images={selected.images} title={selected.title} />
+                <Gallery images={selected.images} title={selected.title} t={t} />
 
                 <div className="details">
                   <div className="kvs">
                     <div className="kv">
-                      <span>Price</span>
+                      <span>{t("viewModal.priceDiscounted")}</span>
                       <b>
-                        {Number(selected.price).toFixed(2)} {selected.valute ?? "USD"}
+                        {Number(selected.price ?? 0).toFixed(2)}{" "}
+                        {selected.valute ?? "USD"}
                       </b>
                     </div>
+
                     <div className="kv">
-                      <span>Discount</span>
-                      <b>{selected.discount}%</b>
+                      <span>{t("viewModal.oldMoney")}</span>
+                      <b>{Number(selected.old_money ?? 0).toFixed(2)}</b>
                     </div>
+
                     <div className="kv">
-                      <span>Item left</span>
-                      <b>{selected.item_left == null ? "—" : selected.item_left}</b>
+                      <span>{t("viewModal.discount")}</span>
+                      <b>{Number(selected.discount ?? 0)}%</b>
                     </div>
+
                     <div className="kv">
-                      <span>Release date</span>
+                      <span>{t("viewModal.itemLeft")}</span>
+                      <b>{selected.item_left == null ? t("misc.dash") : selected.item_left}</b>
+                    </div>
+
+                    <div className="kv">
+                      <span>{t("viewModal.mlSizes")}</span>
+                      <b className="ml-inline">
+                        {Array.isArray(selected.ml_sizes) && selected.ml_sizes.length > 0
+                          ? selected.ml_sizes.map((m) => (
+                              <span key={m} className="ml-pill">
+                                {m}ml
+                              </span>
+                            ))
+                          : t("misc.dash")}
+                      </b>
+                    </div>
+
+                    <div className="kv">
+                      <span>{t("viewModal.releaseDate")}</span>
                       <b>{selected.release_date || "-"}</b>
                     </div>
                   </div>
 
                   <div className="section">
-                    <h4>Info</h4>
-                    <p className="text">{selected.info || "-"}</p>
+                    <h4>{t("viewModal.info")}</h4>
+                    <p className="text">{selected.info || t("viewModal.noInfo")}</p>
                   </div>
                 </div>
               </div>
@@ -436,17 +561,15 @@ export default function Admin() {
                   closeViewModal();
                   openEditModal(selected);
                 }}
-                aria-label="Edit product"
               >
-                Edit
+                {t("viewModal.edit")}
               </button>
               <button
                 className="btn danger"
-                onClick={(e) => onDelete(e, selected.id)}
+                onClick={(e) => askDelete(e, selected)}
                 disabled={deleting}
-                aria-label="Delete product"
               >
-                Delete
+                {t("viewModal.delete")}
               </button>
             </div>
           </div>
@@ -455,22 +578,16 @@ export default function Admin() {
 
       {/* ADD/EDIT MODAL */}
       {openForm && (
-        <div className="modal-overlay" onMouseDown={closeFormModal}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`form-modal-title-${selected?.id ?? mode}`}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+        <div className="modal-overlay" onClick={closeFormModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
               <div>
-                <h3 id={`form-modal-title-${selected?.id ?? mode}`} className="modal-h">
-                  {mode === "add" ? "Add product" : "Edit product"}
+                <h3 className="modal-h">
+                  {mode === "add" ? t("formModal.addTitle") : t("formModal.editTitle")}
                 </h3>
-                <p className="muted">Upload 1–3 images from PC</p>
+                <p className="muted">{t("formModal.subtitle")}</p>
               </div>
-              <button className="icon-btn" onClick={closeFormModal} aria-label="Close form">
+              <button className="icon-btn" onClick={closeFormModal}>
                 ✕
               </button>
             </div>
@@ -478,7 +595,7 @@ export default function Admin() {
             <form className="modal-body" onSubmit={onSubmit}>
               <div className="form-grid">
                 <div className="form-row">
-                  <label htmlFor="product-title">Title</label>
+                  <label htmlFor="product-title">{t("formModal.title")}</label>
                   <input
                     id="product-title"
                     value={draft.title}
@@ -487,7 +604,7 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label htmlFor="product-brand">Brand</label>
+                  <label htmlFor="product-brand">{t("formModal.brand")}</label>
                   <input
                     id="product-brand"
                     value={draft.brand}
@@ -496,20 +613,20 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label htmlFor="product-gender">Gender</label>
+                  <label htmlFor="product-gender">{t("formModal.gender")}</label>
                   <select
                     id="product-gender"
                     value={draft.gender}
                     onChange={(e) => setDraft({ ...draft, gender: e.target.value })}
                   >
-                    <option value="men">men</option>
-                    <option value="women">women</option>
-                    <option value="unisex">unisex</option>
+                    <option value="men">{t("admin.gender.men")}</option>
+                    <option value="women">{t("admin.gender.women")}</option>
+                    <option value="unisex">{t("admin.gender.unisex")}</option>
                   </select>
                 </div>
 
                 <div className="form-row">
-                  <label htmlFor="product-valute">Valute</label>
+                  <label htmlFor="product-valute">{t("formModal.valute")}</label>
                   <select
                     id="product-valute"
                     value={draft.valute ?? "USD"}
@@ -520,27 +637,76 @@ export default function Admin() {
                   </select>
                 </div>
 
+                {/* ML chip input */}
+                <div className="form-row">
+                  <label>{t("formModal.mlSizes")}</label>
+
+                  <div className="ml-add">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder={t("formModal.mlPlaceholder")}
+                      value={mlInput}
+                      onChange={(e) => setMlInput(e.target.value)}
+                      onKeyDown={onMlKeyDown}
+                    />
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => addMlChip(mlInput)}
+                      disabled={!String(mlInput).trim()}
+                    >
+                      {t("formModal.addMl")}
+                    </button>
+                  </div>
+
+                  <div className="ml-chips">
+                    {Array.isArray(draft.ml_sizes) && draft.ml_sizes.length > 0 ? (
+                      draft.ml_sizes.map((m) => (
+                        <span key={m} className="ml-chip">
+                          <span className="ml-chip-txt">{m} ml</span>
+                          <button
+                            type="button"
+                            className="ml-x"
+                            onClick={() => removeMlChip(m)}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="muted">{t("formModal.noMlYet")}</span>
+                    )}
+                  </div>
+                </div>
+
                 <div className="form-2col">
                   <div className="form-row">
-                    <label htmlFor="product-price">Price</label>
+                    <label htmlFor="product-price">{t("formModal.priceOriginal")}</label>
                     <input
                       id="product-price"
                       type="number"
                       step="0.01"
-                      defaultValue={draft.price}
+                      value={draft.price}
                       onFocus={(e) => {
                         if (Number(e.target.value) === 0) e.target.select();
                       }}
-                      onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setDraft({ ...draft, price: Number(e.target.value) })
+                      }
                     />
+                    <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                      {t("formModal.finalSavedPrice")}{" "}
+                      {calcDiscountedPrice(draft.price, draft.discount).toFixed(2)}
+                    </div>
                   </div>
 
                   <div className="form-row">
-                    <label htmlFor="product-discount">Discount (%)</label>
+                    <label htmlFor="product-discount">{t("formModal.discountPercent")}</label>
                     <input
                       id="product-discount"
                       type="number"
-                      defaultValue={draft.discount}
+                      value={draft.discount}
                       onFocus={(e) => {
                         if (Number(e.target.value) === 0) e.target.select();
                       }}
@@ -551,14 +717,12 @@ export default function Admin() {
                   </div>
 
                   <div className="form-row">
-                    <label htmlFor="product-left">Item left</label>
-
-                    {/* ✅ NEW: checkbox + input */}
+                    <label htmlFor="product-left">{t("formModal.itemLeft")}</label>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <input
                         id="product-left"
                         type="number"
-                        defaultValue={draft.item_left}
+                        value={draft.item_left}
                         disabled={unknownLeft}
                         onFocus={(e) => {
                           if (Number(e.target.value) === 0) e.target.select();
@@ -584,24 +748,26 @@ export default function Admin() {
                           checked={unknownLeft}
                           onChange={(e) => setUnknownLeft(e.target.checked)}
                         />
-                        Unknown
+                        {t("formModal.unknown")}
                       </label>
                     </div>
                   </div>
                 </div>
 
                 <div className="form-row">
-                  <label htmlFor="product-release">Release date</label>
+                  <label htmlFor="product-release">{t("formModal.releaseDate")}</label>
                   <input
                     id="product-release"
                     value={draft.release_date}
-                    onChange={(e) => setDraft({ ...draft, release_date: e.target.value })}
-                    placeholder="YYYY-MM-DD"
+                    onChange={(e) =>
+                      setDraft({ ...draft, release_date: e.target.value })
+                    }
+                    placeholder={t("formModal.releasePlaceholder")}
                   />
                 </div>
 
                 <div className="form-row">
-                  <label htmlFor="product-info">Info</label>
+                  <label htmlFor="product-info">{t("formModal.info")}</label>
                   <textarea
                     id="product-info"
                     rows={4}
@@ -611,19 +777,16 @@ export default function Admin() {
                 </div>
 
                 <div className="form-row">
-                  <label htmlFor="product-images">Images (1–3)</label>
+                  <label htmlFor="product-images">{t("formModal.images")}</label>
                   <input
                     id="product-images"
                     type="file"
                     multiple
                     accept="image/*"
                     onChange={onPickImages}
-                    aria-label="Upload product images"
                   />
                   <div className="upload-hint">
-                    {uploading
-                      ? "Uploading..."
-                      : "Pick images from your PC (Recommended to upload 220x190px)"}
+                    {uploading ? t("formModal.uploading") : t("formModal.uploadHint")}
                   </div>
 
                   <div className="thumbs">
@@ -641,7 +804,7 @@ export default function Admin() {
                           type="button"
                           className="miniX"
                           onClick={() => removeImage(idx)}
-                          aria-label={`Remove image ${idx + 1}`}
+                          aria-label={t("formModal.removeImage", { n: idx + 1 })}
                         >
                           ✕
                         </button>
@@ -652,20 +815,88 @@ export default function Admin() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn ghost" onClick={closeFormModal} aria-label="Cancel">
-                  Cancel
+                <button type="button" className="btn ghost" onClick={closeFormModal}>
+                  {t("formModal.cancel")}
                 </button>
-                <button type="submit" className="btn primary" disabled={uploading || adding || updating}>
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={uploading || adding || updating}
+                >
                   {mode === "add"
                     ? adding
-                      ? "Adding..."
-                      : "Add"
+                      ? t("formModal.adding")
+                      : t("formModal.addBtn")
                     : updating
-                      ? "Saving..."
-                      : "Save"}
+                    ? t("formModal.saving")
+                    : t("formModal.saveBtn")}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRM MODAL */}
+      {openDelete && deleteTarget && (
+        <div className="modal-overlay" onClick={closeDeleteModal}>
+          <div className="modal delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-top delete-top">
+              <div className="delete-head">
+                <div className="danger-dot" aria-hidden="true">
+                  !
+                </div>
+                <div>
+                  <h3 className="modal-h">{t("deleteModal.title")}</h3>
+                  <p className="muted delete-sub">{t("deleteModal.subtitle")}</p>
+                </div>
+              </div>
+              <button className="icon-btn" onClick={closeDeleteModal}>
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="delete-card">
+                <img
+                  className="delete-img"
+                  src={firstImage(deleteTarget.images)}
+                  alt={deleteTarget.title || t("misc.unknownProduct")}
+                  width={56}
+                  height={56}
+                  onError={(e) =>
+                    (e.currentTarget.src = "https://via.placeholder.com/56")
+                  }
+                />
+                <div className="delete-meta">
+                  <div className="delete-title">
+                    {deleteTarget.title || t("misc.untitled")}
+                  </div>
+                  <div className="delete-small">
+                    {deleteTarget.brand || "-"} •{" "}
+                    <span className="badge">{deleteTarget.gender || "unisex"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="delete-warn">
+                <div className="delete-warn-icn" aria-hidden="true">
+                  ⚠
+                </div>
+                <div>
+                  <b>{t("deleteModal.headsUp")}</b> {t("deleteModal.warnText")}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions delete-actions">
+              <button className="btn ghost" type="button" onClick={closeDeleteModal} disabled={deleteBusy}>
+                {t("deleteModal.cancel")}
+              </button>
+              <button className="btn danger solid" type="button" onClick={confirmDelete} disabled={deleteBusy}>
+                {deleteBusy ? t("deleteModal.deleting") : t("deleteModal.confirm")}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -678,22 +909,26 @@ function firstImage(images) {
   return "https://via.placeholder.com/44";
 }
 
+// edit paytida input price original bo‘lishi kerak
 function productToDraft(p) {
+  const original = Number(p.old_money ?? p.price ?? 0);
+
   return {
     title: p.title ?? "",
     brand: p.brand ?? "",
     gender: p.gender ?? "unisex",
     valute: p.valute ?? "USD",
-    price: Number(p.price ?? 0),
+    price: Number.isFinite(original) ? original : 0,
     discount: Number(p.discount ?? 0),
     item_left: Number(p.item_left ?? 0),
     info: p.info ?? "",
     release_date: p.release_date ?? "",
     images: Array.isArray(p.images) ? p.images : [],
+    ml_sizes: Array.isArray(p.ml_sizes) ? normalizeMl(p.ml_sizes) : [],
   };
 }
 
-function Gallery({ images, title }) {
+function Gallery({ images, title, t }) {
   const safe = Array.isArray(images) ? images.filter(Boolean) : [];
   const [idx, setIdx] = useState(0);
   const current = safe[idx] || "https://via.placeholder.com/520x360";
@@ -711,9 +946,10 @@ function Gallery({ images, title }) {
           height={190}
           loading="lazy"
           decoding="async"
-          onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/520x360")}
+          onError={(e) =>
+            (e.currentTarget.src = "https://via.placeholder.com/520x360")
+          }
         />
-
         {safe.length > 1 && (
           <>
             <button className="nav-btn left" onClick={prev} aria-label="Previous image">
@@ -728,7 +964,7 @@ function Gallery({ images, title }) {
 
       <div className="thumbs">
         {safe.length === 0 ? (
-          <span className="muted">No images</span>
+          <span className="muted">{t("misc.noImages")}</span>
         ) : (
           safe.map((src, i) => (
             <button

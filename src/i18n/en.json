@@ -1,0 +1,103 @@
+{
+  "admin": {
+    "title": "Admin • Products",
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "add": "+ Add",
+    "total": "Total: {{total}} • Showing: {{showing}}",
+    "searchPlaceholder": "Search title / brand...",
+    "filterGender": "Filter by gender",
+    "gender": {
+      "all": "All",
+      "men": "men",
+      "women": "women",
+      "unisex": "unisex",
+      "universal": "Universal"
+    },
+    "table": {
+      "product": "Product",
+      "brand": "Brand",
+      "gender": "Gender",
+      "price": "Price",
+      "discount": "Discount",
+      "left": "Left",
+      "ml": "ML",
+      "release": "Release",
+      "actions": "Actions",
+      "noProducts": "No products found.",
+      "old": "Old: {{price}}"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete"
+    }
+  },
+
+  "viewModal": {
+    "close": "Close view",
+    "priceDiscounted": "Price (discounted)",
+    "oldMoney": "Old money",
+    "discount": "Discount",
+    "itemLeft": "Item left",
+    "mlSizes": "ML sizes",
+    "releaseDate": "Release date",
+    "info": "Info",
+    "noInfo": "-",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+
+  "formModal": {
+    "addTitle": "Add product",
+    "editTitle": "Edit product",
+    "subtitle": "Upload 1–3 images from PC",
+    "close": "Close form",
+    "title": "Title",
+    "brand": "Brand",
+    "gender": "Gender",
+    "valute": "Valute",
+    "mlSizes": "ML sizes",
+    "mlPlaceholder": "e.g. 50",
+    "addMl": "+ Add ML",
+    "noMlYet": "No ML sizes added yet.",
+    "priceOriginal": "Price (original)",
+    "finalSavedPrice": "Final saved price:",
+    "discountPercent": "Discount (%)",
+    "itemLeft": "Item left",
+    "unknown": "Unknown",
+    "releaseDate": "Release date",
+    "releasePlaceholder": "YYYY-MM-DD",
+    "info": "Info",
+    "images": "Images (1–3)",
+    "uploadHint": "Pick images from your PC (Recommended 220x190px)",
+    "uploading": "Uploading...",
+    "removeImage": "Remove image {{n}}",
+    "cancel": "Cancel",
+    "addBtn": "Add",
+    "saveBtn": "Save",
+    "adding": "Adding...",
+    "saving": "Saving..."
+  },
+
+  "deleteModal": {
+    "title": "Delete product?",
+    "subtitle": "This action cannot be undone.",
+    "close": "Close delete modal",
+    "headsUp": "Heads up:",
+    "warnText": "product will be permanently removed from database.",
+    "cancel": "Cancel",
+    "confirm": "Yes, delete",
+    "deleting": "Deleting..."
+  },
+
+  "misc": {
+    "dash": "—",
+    "unknownProduct": "Product",
+    "untitled": "Untitled",
+    "noImages": "No images",
+    "uploadError": "Upload error",
+    "validationTitleBrand": "Title and brand must not be empty."
+  }
+}

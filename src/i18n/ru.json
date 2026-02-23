@@ -1,0 +1,103 @@
+{
+  "admin": {
+    "title": "Админ • Товары",
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "retry": "Повторить",
+    "refresh": "Обновить",
+    "add": "+ Добавить",
+    "total": "Всего: {{total}} • Показано: {{showing}}",
+    "searchPlaceholder": "Поиск по названию / бренду...",
+    "filterGender": "Фильтр по полу",
+    "gender": {
+      "all": "Все",
+      "men": "мужские",
+      "women": "женские",
+      "unisex": "унисекс",
+      "universal": "Универсальные"
+    },
+    "table": {
+      "product": "Товар",
+      "brand": "Бренд",
+      "gender": "Пол",
+      "price": "Цена",
+      "discount": "Скидка",
+      "left": "Остаток",
+      "ml": "ML",
+      "release": "Дата",
+      "actions": "Действия",
+      "noProducts": "Товары не найдены.",
+      "old": "Старая: {{price}}"
+    },
+    "actions": {
+      "edit": "Изменить",
+      "delete": "Удалить"
+    }
+  },
+
+  "viewModal": {
+    "close": "Закрыть",
+    "priceDiscounted": "Цена (со скидкой)",
+    "oldMoney": "Старая цена",
+    "discount": "Скидка",
+    "itemLeft": "Остаток",
+    "mlSizes": "Объёмы (ML)",
+    "releaseDate": "Дата выхода",
+    "info": "Описание",
+    "noInfo": "-",
+    "edit": "Изменить",
+    "delete": "Удалить"
+  },
+
+  "formModal": {
+    "addTitle": "Добавить товар",
+    "editTitle": "Редактировать товар",
+    "subtitle": "Загрузите 1–3 изображения с ПК",
+    "close": "Закрыть",
+    "title": "Название",
+    "brand": "Бренд",
+    "gender": "Пол",
+    "valute": "Валюта",
+    "mlSizes": "Объёмы (ML)",
+    "mlPlaceholder": "например 50",
+    "addMl": "+ Добавить ML",
+    "noMlYet": "Объёмы ещё не добавлены.",
+    "priceOriginal": "Цена (оригинал)",
+    "finalSavedPrice": "Итоговая цена для сохранения:",
+    "discountPercent": "Скидка (%)",
+    "itemLeft": "Остаток",
+    "unknown": "Неизвестно",
+    "releaseDate": "Дата выхода",
+    "releasePlaceholder": "YYYY-MM-DD",
+    "info": "Описание",
+    "images": "Изображения (1–3)",
+    "uploadHint": "Выберите изображения с ПК (Рекомендовано 220x190px)",
+    "uploading": "Загрузка...",
+    "removeImage": "Удалить изображение {{n}}",
+    "cancel": "Отмена",
+    "addBtn": "Добавить",
+    "saveBtn": "Сохранить",
+    "adding": "Добавление...",
+    "saving": "Сохранение..."
+  },
+
+  "deleteModal": {
+    "title": "Удалить товар?",
+    "subtitle": "Это действие нельзя отменить.",
+    "close": "Закрыть окно удаления",
+    "headsUp": "Внимание:",
+    "warnText": "товар будет удалён из базы навсегда.",
+    "cancel": "Отмена",
+    "confirm": "Да, удалить",
+    "deleting": "Удаление..."
+  },
+
+  "misc": {
+    "dash": "—",
+    "unknownProduct": "Товар",
+    "untitled": "Без названия",
+    "noImages": "Нет изображений",
+    "uploadError": "Ошибка загрузки",
+    "validationTitleBrand": "Название и бренд не должны быть пустыми."
+  }
+}
