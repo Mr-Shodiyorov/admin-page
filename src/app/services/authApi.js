@@ -10,6 +10,7 @@ export const authApi = createApi({
     prepareHeaders: (headers) => {
       headers.set("apikey", supabaseKey);
       headers.set("Authorization", `Bearer ${supabaseKey}`);
+      headers.set("Content-Type", "application/json"); // ✅ FIX: tells Supabase to parse body as JSON, not a plain string
       headers.set("Accept", "application/json");
       return headers;
     },
